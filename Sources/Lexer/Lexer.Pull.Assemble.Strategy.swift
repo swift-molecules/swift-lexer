@@ -9,7 +9,7 @@ extension Lexer.Pull.Assemble {
         associatedtype Tokens: Lexer.Pull.Tokens
 
         static func consume(
-            bytes: Swift.Span<Byte>,
+            bytes: Swift::Span<Byte>,
             limit: Int
         ) throws(Tokens.Error) -> Value
 

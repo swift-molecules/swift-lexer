@@ -21,13 +21,13 @@ extension Lexer.Pull {
         internal var consumed: Bool
 
         @usableFromInline
-        internal let bytes: Swift.Span<Byte>
+        internal let bytes: Swift::Span<Byte>
 
         public var scratch: Tokens.Scratch
 
         @inlinable
         @_lifetime(borrow bytes)
-        public init(_ bytes: borrowing Swift.Span<Byte>, limit: Int = 512) {
+        public init(_ bytes: borrowing Swift::Span<Byte>, limit: Int = 512) {
             self.scanner = Lexer.Scanner(bytes)
             self.bytes = copy bytes
             self.depth = 0
@@ -102,8 +102,8 @@ extension Lexer.Pull.Stream {
 
     @inlinable
     @_lifetime(self: copy self)
-    public mutating func consume<V, E: Swift.Error>(
-        via parse: (Swift.Span<Byte>, Int) throws(E) -> V
+    public mutating func consume<V, E: Swift::Error>(
+        via parse: (Swift::Span<Byte>, Int) throws(E) -> V
     ) throws(E) -> V {
         pristine = false
         let value = try parse(bytes, limit)

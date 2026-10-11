@@ -1,7 +1,7 @@
 public import Difference
 public import Ordinal
 public import Byte
-public import Span
+import Span
 public import Text
 
 extension Lexer {
@@ -13,7 +13,7 @@ extension Lexer {
         internal var offset: Int
 
         @usableFromInline
-        internal let source: Swift.Span<Byte>
+        internal let source: Swift::Span<Byte>
 
         @usableFromInline
         internal var hasEmittedEndOfFile: Bool
@@ -23,7 +23,7 @@ extension Lexer {
 
         @inlinable
         @_lifetime(borrow source)
-        public init(_ source: borrowing Swift.Span<Byte>) {
+        public init(_ source: borrowing Swift::Span<Byte>) {
             self.source = copy source
 
             self.offset = 0
@@ -70,7 +70,7 @@ extension Lexer.Scanner {
 
     @_disfavoredOverload
     @inlinable
-    public func peek<X, Failure: Swift.Error>(validating validate: (Byte) throws(Failure) -> X) -> X? {
+    public func peek<X, Failure: Swift::Error>(validating validate: (Byte) throws(Failure) -> X) -> X? {
         guard let byte = peek() else { return nil }
         do throws(Failure) {
             return try validate(byte)
@@ -81,7 +81,7 @@ extension Lexer.Scanner {
 
     @_disfavoredOverload
     @inlinable
-    public func peek<X, Failure: Swift.Error>(at offset: Text.Count, validating validate: (Byte) throws(Failure) -> X) -> X? {
+    public func peek<X, Failure: Swift::Error>(at offset: Text.Count, validating validate: (Byte) throws(Failure) -> X) -> X? {
         guard let byte = peek(at: offset) else { return nil }
         do throws(Failure) {
             return try validate(byte)
@@ -163,7 +163,7 @@ extension Lexer.Scanner {
     package func extract(
         from start: Text.Position,
         to end: Text.Position
-    ) -> Swift.Span<Byte> {
+    ) -> Swift::Span<Byte> {
         guard let lower = Int(exactly: start.underlying.rawValue),
               let upper = Int(exactly: end.underlying.rawValue),
               lower <= upper, upper <= source.count else {

@@ -14,7 +14,7 @@ extension Bracket.Tokens {
         case close
     }
 
-    enum Error: Swift.Error, Equatable {
+    enum Error: Swift::Error, Equatable {
         case unexpected(Byte)
         case unbalanced
     }
@@ -83,7 +83,7 @@ extension Lexer.Pull {
 
         private func withSpan<R>(
             _ source: String,
-            _ body: (borrowing Swift.Span<Byte>) throws -> R
+            _ body: (borrowing Swift::Span<Byte>) throws -> R
         ) rethrows -> R {
             let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
             return try bytes.withUnsafeBufferPointer { buffer in
@@ -210,7 +210,7 @@ extension Bracket.Count {
     typealias Value = Int
 
     static func consume(
-        bytes: Swift.Span<Byte>,
+        bytes: Swift::Span<Byte>,
         limit: Int
     ) throws(Bracket.Tokens.Error) -> Int {
 
@@ -239,7 +239,7 @@ extension Lexer.Pull.Assemble {
 
         private func withSpan<R>(
             _ source: String,
-            _ body: (borrowing Swift.Span<Byte>) throws -> R
+            _ body: (borrowing Swift::Span<Byte>) throws -> R
         ) rethrows -> R {
             let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
             return try bytes.withUnsafeBufferPointer { buffer in

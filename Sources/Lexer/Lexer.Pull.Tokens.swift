@@ -4,7 +4,7 @@ extension Lexer.Pull {
 
         associatedtype Kind: Hashable & Sendable
 
-        associatedtype Error: Swift.Error
+        associatedtype Error: Swift::Error
 
         associatedtype Scratch = ()
 

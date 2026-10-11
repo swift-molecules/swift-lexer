@@ -2,7 +2,7 @@ public import Text
 
 extension Lexer {
 
-    public enum Error: Swift.Error, Sendable, Equatable, Hashable {
+    public enum Error: Swift::Error, Sendable, Equatable, Hashable {
 
         case invalidCharacter(at: Text.Position)
 

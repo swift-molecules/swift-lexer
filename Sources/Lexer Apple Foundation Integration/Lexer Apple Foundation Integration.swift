@@ -1,3 +1,3 @@
-public import Lexer
-public import Lexer_Standard_Library_Integration
-public import Foundation
+import Lexer
+import Lexer_Standard_Library_Integration
+import Foundation
