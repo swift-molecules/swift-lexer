@@ -1,6 +1,6 @@
+public import Byte
 public import Difference
 public import Ordinal
-public import Byte
 import Span
 public import Text
 
@@ -64,7 +64,8 @@ extension Lexer.Scanner {
     @inlinable
     public func peek(at distance: Text.Count) -> Byte? {
         guard let distance = Int(exactly: distance.underlying.rawValue),
-              distance < source.count - offset else { return nil }
+            distance < source.count - offset
+        else { return nil }
         return source[offset + distance]
     }
 
@@ -165,8 +166,9 @@ extension Lexer.Scanner {
         to end: Text.Position
     ) -> Swift::Span<Byte> {
         guard let lower = Int(exactly: start.underlying.rawValue),
-              let upper = Int(exactly: end.underlying.rawValue),
-              lower <= upper, upper <= source.count else {
+            let upper = Int(exactly: end.underlying.rawValue),
+            lower <= upper, upper <= source.count
+        else {
             preconditionFailure("Scanner range is outside the source")
         }
         return source.extracting(lower..<upper)

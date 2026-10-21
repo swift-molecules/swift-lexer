@@ -319,45 +319,39 @@ extension Token.Keyword {
     package init?(_length8 p: UnsafePointer<UInt8>) {
         switch unsafe p[0] {
         case 0x63:
-            if unsafe _matchesSuffix(p, count: 8, (0x63, 0x6F, 0x6E, 0x74, 0x69, 0x6E, 0x75, 0x65))
-            {
+            if unsafe _matchesSuffix(p, count: 8, (0x63, 0x6F, 0x6E, 0x74, 0x69, 0x6E, 0x75, 0x65)) {
                 self = .continue
                 return
             }
             return nil
 
         case 0x69:
-            if unsafe _matchesSuffix(p, count: 8, (0x69, 0x6E, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74))
-            {
+            if unsafe _matchesSuffix(p, count: 8, (0x69, 0x6E, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74)) {
                 self = .indirect
                 return
             }
-            if unsafe _matchesSuffix(p, count: 8, (0x69, 0x6E, 0x74, 0x65, 0x72, 0x6E, 0x61, 0x6C))
-            {
+            if unsafe _matchesSuffix(p, count: 8, (0x69, 0x6E, 0x74, 0x65, 0x72, 0x6E, 0x61, 0x6C)) {
                 self = .internal
                 return
             }
             return nil
 
         case 0x6D:
-            if unsafe _matchesSuffix(p, count: 8, (0x6D, 0x75, 0x74, 0x61, 0x74, 0x69, 0x6E, 0x67))
-            {
+            if unsafe _matchesSuffix(p, count: 8, (0x6D, 0x75, 0x74, 0x61, 0x74, 0x69, 0x6E, 0x67)) {
                 self = .mutating
                 return
             }
             return nil
 
         case 0x6F:
-            if unsafe _matchesSuffix(p, count: 8, (0x6F, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6F, 0x72))
-            {
+            if unsafe _matchesSuffix(p, count: 8, (0x6F, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6F, 0x72)) {
                 self = .operator
                 return
             }
             return nil
 
         case 0x70:
-            if unsafe _matchesSuffix(p, count: 8, (0x70, 0x72, 0x6F, 0x74, 0x6F, 0x63, 0x6F, 0x6C))
-            {
+            if unsafe _matchesSuffix(p, count: 8, (0x70, 0x72, 0x6F, 0x74, 0x6F, 0x63, 0x6F, 0x6C)) {
                 self = .protocol
                 return
             }
