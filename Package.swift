@@ -20,10 +20,6 @@ let package = Package(
             name: "Lexer Standard Library Integration",
             targets: ["Lexer Standard Library Integration"]
         ),
-        .library(
-            name: "Lexer Apple Foundation Integration",
-            targets: ["Lexer Apple Foundation Integration"]
-        ),
     ],
     dependencies: [
         .package(
@@ -83,13 +79,6 @@ let package = Package(
                 .product(name: "Ordinal", package: "swift-ordinal"),
                 .product(name: "Tagged", package: "swift-tagged"),
                 .product(name: "Text", package: "swift-text"),
-            ]
-        ),
-        .target(
-            name: "Lexer Apple Foundation Integration",
-            dependencies: [
-                .target(name: "Lexer"),
-                .target(name: "Lexer Standard Library Integration"),
             ]
         ),
         .testTarget(
