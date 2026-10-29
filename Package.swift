@@ -25,7 +25,7 @@ let package = Package(
         .trait(
             name: "LexerStandardLibraryIntegration",
             description: "Lexer Standard Library Integration and the dependencies only it needs"
-        ),
+        )
     ],
     dependencies: [
         .package(
