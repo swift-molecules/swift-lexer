@@ -56,6 +56,12 @@ let package = Package(
         .package(url: "https://github.com/swift-atoms/swift-tagged.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-cardinal.git", branch: "main"),
     ],
+    traits: [
+        .trait(
+            name: "LexerStandardLibraryIntegration",
+            description: "Lexer Standard Library Integration and the dependencies only it needs"
+        ),
+    ],
     targets: [
         .target(
             name: "Lexer",
@@ -77,7 +83,11 @@ let package = Package(
             dependencies: [
                 .target(name: "Lexer"),
                 .product(name: "Ordinal", package: "swift-ordinal"),
-                .product(name: "Tagged", package: "swift-tagged"),
+                .product(
+                    name: "Tagged",
+                    package: "swift-tagged",
+                    condition: .when(traits: ["LexerStandardLibraryIntegration"])
+                ),
                 .product(name: "Text", package: "swift-text"),
             ]
         ),
