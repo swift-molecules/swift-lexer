@@ -21,6 +21,12 @@ let package = Package(
             targets: ["Lexer Standard Library Integration"]
         ),
     ],
+    traits: [
+        .trait(
+            name: "LexerStandardLibraryIntegration",
+            description: "Lexer Standard Library Integration and the dependencies only it needs"
+        ),
+    ],
     dependencies: [
         .package(
             url: "https://github.com/swift-molecules/swift-token.git",
@@ -55,12 +61,6 @@ let package = Package(
         .package(url: "https://github.com/swift-atoms/swift-ordinal.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-tagged.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-cardinal.git", branch: "main"),
-    ],
-    traits: [
-        .trait(
-            name: "LexerStandardLibraryIntegration",
-            description: "Lexer Standard Library Integration and the dependencies only it needs"
-        ),
     ],
     targets: [
         .target(
