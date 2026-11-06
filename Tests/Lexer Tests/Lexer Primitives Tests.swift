@@ -5,7 +5,9 @@ import Testing
 import Text
 import Token
 
-extension Lexer.Scanner {
+enum `Lexer.Scanner Tests` {}
+
+extension `Lexer.Scanner Tests` {
     @Suite("Lexer.Scanner")
     struct Test {
 

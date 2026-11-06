@@ -77,7 +77,9 @@ extension Bracket.Tokens {
     }
 }
 
-extension Lexer.Pull {
+enum `Lexer.Pull Tests` {}
+
+extension `Lexer.Pull Tests` {
     @Suite("Lexer.Pull")
     struct Test {
 
@@ -233,7 +235,9 @@ extension Bracket.Count {
     }
 }
 
-extension Lexer.Pull.Assemble {
+enum `Lexer.Pull.Assemble Tests` {}
+
+extension `Lexer.Pull.Assemble Tests` {
     @Suite("Lexer.Pull.Assemble")
     struct Test {
 
