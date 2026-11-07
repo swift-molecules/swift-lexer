@@ -3,6 +3,8 @@ public import Difference
 public import Ordinal
 import Span
 public import Text
+public import ASCII
+public import Token
 
 extension Lexer {
 
@@ -182,5 +184,474 @@ extension Lexer.Scanner {
     ) -> Text.Count {
 
         return (end - start).magnitude.map { $0.value }
+    }
+}
+
+extension Lexer.Scanner {
+
+    @inlinable
+    @_lifetime(self: copy self)
+    public mutating func next(
+        diagnostics: inout [Lexer.Error]
+    ) -> Lexer.Lexeme? {
+        guard !hasEmittedEndOfFile else { return nil }
+
+        let leadingStart = cursor
+        leading(diagnostics: &diagnostics)
+        let leadingLength = distance(from: leadingStart, to: cursor)
+
+        guard contains(cursor) else {
+            hasEmittedEndOfFile = true
+            return Lexer.Lexeme(
+                kind: .endOfFile,
+                range: Text.Range(start: cursor, end: cursor),
+                leadingTriviaLength: leadingLength,
+                trailingTriviaLength: .zero
+            )
+        }
+
+        let tokenStart = cursor
+        let kind = token(diagnostics: &diagnostics)
+        let tokenEnd = cursor
+
+        let trailingStart = cursor
+        trailing()
+        let trailingLength = distance(from: trailingStart, to: cursor)
+
+        return Lexer.Lexeme(
+            kind: kind,
+            range: Text.Range(start: tokenStart, end: tokenEnd),
+            leadingTriviaLength: leadingLength,
+            trailingTriviaLength: trailingLength
+        )
+    }
+}
+
+extension Lexer.Scanner {
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func leading(
+        diagnostics: inout [Lexer.Error]
+    ) {
+        while contains(cursor) {
+            let b = byte(at: cursor)
+            switch b {
+            case .ascii.space, .ascii.tab, .ascii.vtab, .ascii.ff:
+                cursor += .one
+
+            case .ascii.cr:
+                tracker.newline(at: cursor)
+                cursor += .one
+
+                if contains(cursor) && byte(at: cursor) == .ascii.lf {
+                    cursor += .one
+                }
+
+            case .ascii.lf:
+                tracker.newline(at: cursor)
+                cursor += .one
+
+            case .ascii.slash:
+                if peek(at: .one) == .ascii.slash {
+
+                    cursor += .one
+                    cursor += .one
+                    while contains(cursor) {
+                        let c = byte(at: cursor)
+                        if c == .ascii.lf || c == .ascii.cr { break }
+                        cursor += .one
+                    }
+                } else if peek(at: .one) == .ascii.asterisk {
+                    comment(diagnostics: &diagnostics)
+                } else {
+                    return
+                }
+
+            default:
+                return
+            }
+        }
+    }
+
+    @inlinable
+    @inline(__always)
+    @_lifetime(self: copy self)
+    package mutating func trailing() {
+        while contains(cursor) {
+            let b = byte(at: cursor)
+            guard b == .ascii.space || b == .ascii.tab else { return }
+            cursor += .one
+        }
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func comment(
+        diagnostics: inout [Lexer.Error]
+    ) {
+        let start = cursor
+        cursor += .one
+        cursor += .one
+        var depth = 1
+
+        while contains(cursor) && depth > 0 {
+            let b = byte(at: cursor)
+            if b == .ascii.slash && peek(at: .one) == .ascii.asterisk {
+                cursor += .one
+                cursor += .one
+                depth += 1
+            } else if b == .ascii.asterisk && peek(at: .one) == .ascii.slash {
+                cursor += .one
+                cursor += .one
+                depth -= 1
+            } else if b == .ascii.cr {
+                tracker.newline(at: cursor)
+                cursor += .one
+                if contains(cursor) && byte(at: cursor) == .ascii.lf {
+                    cursor += .one
+                }
+            } else if b == .ascii.lf {
+                tracker.newline(at: cursor)
+                cursor += .one
+            } else {
+                cursor += .one
+            }
+        }
+
+        if depth > 0 {
+            diagnostics.append(.unterminatedBlockComment(at: start))
+        }
+    }
+}
+
+extension Lexer.Scanner {
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func token(
+        diagnostics: inout [Lexer.Error]
+    ) -> Token.Kind {
+        let b = byte(at: cursor)
+
+        if Lexer.Classify.isIdentifierStart(b) {
+            return identifier()
+        }
+        if b == .ascii.dollarSign {
+            return dollar()
+        }
+        if Lexer.Classify.isDecimalDigit(b) {
+            return number()
+        }
+
+        switch b {
+        case .ascii.doubleQuote:
+            return string(diagnostics: &diagnostics)
+
+        case .ascii.hyphen:
+            if peek(at: .one) == .ascii.greaterThan {
+                cursor += .one
+                cursor += .one
+                return .arrow
+            }
+            return `operator`()
+
+        case .ascii.period:
+            if peek(at: .one) == .ascii.period
+                && peek(at: Text.Count(Cardinal(2))) == .ascii.period
+            {
+                cursor += .one
+                cursor += .one
+                cursor += .one
+                return .ellipsis
+            }
+            cursor += .one
+            return .period
+
+        case .ascii.leftBrace:
+            cursor += .one
+            return .leftBrace
+
+        case .ascii.rightBrace:
+            cursor += .one
+            return .rightBrace
+
+        case .ascii.leftParenthesis:
+            cursor += .one
+            return .leftParen
+
+        case .ascii.rightParenthesis:
+            cursor += .one
+            return .rightParen
+
+        case .ascii.leftBracket:
+            cursor += .one
+            return .leftBracket
+
+        case .ascii.rightBracket:
+            cursor += .one
+            return .rightBracket
+
+        case .ascii.colon:
+            cursor += .one
+            return .colon
+
+        case .ascii.semicolon:
+            cursor += .one
+            return .semicolon
+
+        case .ascii.comma:
+            cursor += .one
+            return .comma
+
+        case .ascii.atSign:
+            cursor += .one
+            return .atSign
+
+        case .ascii.numberSign: return directive()
+
+        case .ascii.backslash:
+            cursor += .one
+            return .backslash
+
+        case .ascii.leftSingleQuotationMark:
+            cursor += .one
+            return .backtick
+
+        case .ascii.tilde:
+            cursor += .one
+            return .tilde
+
+        case .ascii.ampersand:
+            cursor += .one
+            return .ampersand
+
+        case .ascii.equalsSign:
+            cursor += .one
+            return .equal
+
+        case .ascii.exclamationPoint:
+            cursor += .one
+            return .exclamationMark
+
+        case .ascii.questionMark:
+            cursor += .one
+            return .questionMark
+
+        case _ where Lexer.Classify.isOperatorStart(b):
+            return `operator`()
+
+        default:
+            diagnostics.append(.invalidCharacter(at: cursor))
+            cursor += .one
+            return .unknown
+        }
+    }
+}
+
+extension Lexer.Scanner {
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func identifier() -> Token.Kind {
+        let start = cursor
+        cursor += .one
+
+        while contains(cursor)
+            && Lexer.Classify.isIdentifierContinuation(byte(at: cursor))
+        {
+            cursor += .one
+        }
+
+        if start + .one == cursor && byte(at: start) == .ascii.underline {
+            return .wildcard
+        }
+
+        let keyword: Token.Keyword? = extract(from: start, to: cursor)
+            .withUnsafeBufferPointer { buffer in
+                unsafe Token.Keyword(buffer)
+            }
+
+        if let keyword {
+            return .keyword(keyword)
+        }
+
+        return .identifier
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func dollar() -> Token.Kind {
+        cursor += .one
+        while contains(cursor)
+            && Lexer.Classify.isDecimalDigit(byte(at: cursor))
+        {
+            cursor += .one
+        }
+        return .dollarIdentifier
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func number() -> Token.Kind {
+        var isFloat = false
+        let first = byte(at: cursor)
+
+        if first == .ascii.`0`, let next = peek(at: .one) {
+            switch next {
+            case .ascii.x, .ascii.X:
+                cursor += .one
+                cursor += .one
+                digits(Lexer.Classify.isHexDigit)
+                return .integerLiteral
+
+            case .ascii.b, .ascii.B:
+                cursor += .one
+                cursor += .one
+                digits(Lexer.Classify.isBinaryDigit)
+                return .integerLiteral
+
+            case .ascii.o, .ascii.O:
+                cursor += .one
+                cursor += .one
+                digits(Lexer.Classify.isOctalDigit)
+                return .integerLiteral
+
+            default: break
+            }
+        }
+
+        digits(Lexer.Classify.isDecimalDigit)
+
+        if contains(cursor) && byte(at: cursor) == .ascii.period {
+            if let d = peek(at: .one), Lexer.Classify.isDecimalDigit(d) {
+                cursor += .one
+                digits(Lexer.Classify.isDecimalDigit)
+                isFloat = true
+            }
+        }
+
+        if contains(cursor) {
+            let b = byte(at: cursor)
+            if b == .ascii.e || b == .ascii.E {
+                cursor += .one
+                if contains(cursor) {
+                    let s = byte(at: cursor)
+                    if s == .ascii.plus || s == .ascii.hyphen { cursor += .one }
+                }
+                digits(Lexer.Classify.isDecimalDigit)
+                isFloat = true
+            }
+        }
+
+        return isFloat ? .floatingLiteral : .integerLiteral
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func digits(
+        _ predicate: (Byte) -> Bool
+    ) {
+        while contains(cursor) && predicate(byte(at: cursor)) {
+            cursor += .one
+        }
+        while contains(cursor) && byte(at: cursor) == .ascii.underline {
+            cursor += .one
+            while contains(cursor) && predicate(byte(at: cursor)) {
+                cursor += .one
+            }
+        }
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func directive() -> Token.Kind {
+        let after = cursor + .one
+
+        var end = after
+        while contains(end) && Lexer.Classify.isIdentifierContinuation(byte(at: end)) {
+            end += .one
+        }
+
+        let kind: Token.Kind? = extract(from: after, to: end)
+            .withUnsafeBufferPointer { buf -> Token.Kind? in
+                guard let p = buf.baseAddress else { return nil }
+                switch buf.count {
+                case 2 where unsafe p[0] == .ascii.i && p[1] == .ascii.f:
+                    return .poundIf
+
+                case 4
+                where unsafe p[0] == .ascii.e && p[1] == .ascii.l
+                    && p[2] == .ascii.s && p[3] == .ascii.e:
+                    return .poundElse
+
+                case 5
+                where unsafe p[0] == .ascii.e && p[1] == .ascii.n
+                    && p[2] == .ascii.d && p[3] == .ascii.i
+                    && p[4] == .ascii.f:
+                    return .poundEndif
+
+                case 6
+                where unsafe p[0] == .ascii.e && p[1] == .ascii.l
+                    && p[2] == .ascii.s && p[3] == .ascii.e
+                    && p[4] == .ascii.i && p[5] == .ascii.f:
+                    return .poundElseif
+
+                default:
+                    return nil
+                }
+            }
+
+        if let kind {
+            cursor = end
+            return kind
+        }
+
+        cursor = after
+        return .pound
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func string(
+        diagnostics: inout [Lexer.Error]
+    ) -> Token.Kind {
+        let start = cursor
+        cursor += .one
+
+        while contains(cursor) {
+            let b = byte(at: cursor)
+            switch b {
+            case .ascii.doubleQuote:
+                cursor += .one
+                return .stringLiteral
+
+            case .ascii.backslash:
+                cursor += .one
+                if contains(cursor) { cursor += .one }
+
+            case .ascii.lf, .ascii.cr:
+                diagnostics.append(.unterminatedStringLiteral(at: start))
+                return .stringLiteral
+
+            default:
+                cursor += .one
+            }
+        }
+
+        diagnostics.append(.unterminatedStringLiteral(at: start))
+        return .stringLiteral
+    }
+
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func `operator`() -> Token.Kind {
+        cursor += .one
+        while contains(cursor)
+            && Lexer.Classify.isOperatorContinuation(byte(at: cursor))
+        {
+            cursor += .one
+        }
+        return .binaryOperator
     }
 }
