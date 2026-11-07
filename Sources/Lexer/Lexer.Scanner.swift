@@ -47,7 +47,7 @@ extension Lexer.Scanner {
             preconditionFailure("Scanner location is outside the source")
         }
         var tracker = Text.Location.Tracker()
-        for index in 0..<end {
+        (0..<end).forEach { index in
             if source[index].bitPattern == 0x0A {
                 tracker.newline(at: Text.Position(_unchecked: Ordinal(UInt(index))))
             }
