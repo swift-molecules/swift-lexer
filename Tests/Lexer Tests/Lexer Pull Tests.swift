@@ -80,7 +80,7 @@ extension Bracket.Tokens {
 enum `Lexer.Pull Tests` {}
 
 extension `Lexer.Pull Tests` {
-    @Suite("Lexer.Pull")
+    @Suite
     struct Test {
 
         private func withSpan<R>(
@@ -238,7 +238,7 @@ extension Bracket.Count {
 enum `Lexer.Pull.Assemble Tests` {}
 
 extension `Lexer.Pull.Assemble Tests` {
-    @Suite("Lexer.Pull.Assemble")
+    @Suite
     struct Test {
 
         private func withSpan<R>(

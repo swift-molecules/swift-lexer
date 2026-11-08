@@ -8,7 +8,7 @@ import Token
 enum `Lexer.Scanner Tests` {}
 
 extension `Lexer.Scanner Tests` {
-    @Suite("Lexer.Scanner")
+    @Suite
     struct Test {
 
         private func kinds(
