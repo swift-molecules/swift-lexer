@@ -1,9 +1,9 @@
+public import ASCII
 public import Byte
 public import Difference
 public import Ordinal
 import Span
 public import Text
-public import ASCII
 public import Token
 
 extension Lexer {
