@@ -82,13 +82,13 @@ let package = Package(
             name: "Lexer Standard Library Integration",
             dependencies: [
                 .target(name: "Lexer"),
-                .product(name: "Ordinal", package: "swift-ordinal"),
+                .product(name: "Ordinal", package: "swift-ordinal", condition: .when(traits: ["LexerStandardLibraryIntegration"])),
                 .product(
                     name: "Tagged",
                     package: "swift-tagged",
                     condition: .when(traits: ["LexerStandardLibraryIntegration"])
                 ),
-                .product(name: "Text", package: "swift-text"),
+                .product(name: "Text", package: "swift-text", condition: .when(traits: ["LexerStandardLibraryIntegration"])),
             ]
         ),
         .testTarget(
