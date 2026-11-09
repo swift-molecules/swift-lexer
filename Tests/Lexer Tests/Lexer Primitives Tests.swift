@@ -1,6 +1,7 @@
 import Byte
 import Cardinal
 import Lexer
+import Ordinal
 import Testing
 import Text
 import Token
@@ -205,6 +206,68 @@ extension `Lexer.Scanner Tests` {
                 #expect(second?.kind == .identifier)
                 #expect(scanner.location.line == Text.Line.Number(2))
             }
+        }
+
+        private func locations(
+            from source: String
+        ) -> (incremental: Text.Location, recomputed: Text.Location, lexeme: Text.Location?) {
+            let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
+            return bytes.withUnsafeBufferPointer { buffer in
+                let span = unsafe Span(_unsafeElements: buffer)
+                var scanner = Lexer.Scanner(span)
+                var diagnostics: [Lexer.Error] = []
+                var last: Lexer.Lexeme?
+                while let lexeme = scanner.next(diagnostics: &diagnostics), !lexeme.isAtEnd {
+                    last = lexeme
+                }
+                return (
+                    scanner.location,
+                    scanner.location(at: scanner.position),
+                    last.map { scanner.location(at: $0.range.start) }
+                )
+            }
+        }
+
+        @Test(arguments: [
+            ("a\nbc", 1, 3), ("a\r\nbc", 1, 3), ("a\rbc", 1, 3),
+            ("/*\n*/bc", 3, 5), ("/*\r\n*/bc", 3, 5), ("/*\r*/bc", 3, 5),
+        ])
+        func `location after a line break`(source: String, lexemeColumn: UInt, endColumn: UInt) {
+            let (incremental, recomputed, lexeme) = locations(from: source)
+            let end = Text.Location(line: Text.Line.Number(2), column: Text.Line.Column(Cardinal(endColumn)))
+            #expect(incremental == end)
+            #expect(recomputed == end)
+            #expect(lexeme == Text.Location(line: Text.Line.Number(2), column: Text.Line.Column(Cardinal(lexemeColumn))))
+        }
+
+        @Test(arguments: ["0x", "0b", "0o", "0x_1", "0b2"])
+        func `prefix without digits`(source: String) {
+            let (kinds, diagnostics) = kinds(from: source)
+            #expect(kinds.first == .integerLiteral)
+            #expect(diagnostics == [.expectedDigitAfterPrefix(at: Text.Position(Ordinal(2)))])
+        }
+
+        @Test func `valid escape sequences`() {
+            let (kinds, diagnostics) = kinds(from: #""\0\\\t\n\r\"\'\u{41}\(x)""#)
+            #expect(kinds == [.stringLiteral, .endOfFile])
+            #expect(diagnostics.isEmpty)
+        }
+
+        @Test func `invalid escape sequence`() {
+            let (kinds, diagnostics) = kinds(from: #""a\qb""#)
+            #expect(kinds == [.stringLiteral, .endOfFile])
+            #expect(diagnostics == [.invalidEscapeSequence(at: Text.Position(Ordinal(2)))])
+        }
+
+        @Test func `escaped line break ends the string`() {
+            let (kinds, diagnostics) = kinds(from: "\"a\\\nb")
+            #expect(kinds == [.stringLiteral, .identifier, .endOfFile])
+            #expect(
+                diagnostics == [
+                    .invalidEscapeSequence(at: Text.Position(Ordinal(2))),
+                    .unterminatedStringLiteral(at: Text.Position(Ordinal(0))),
+                ]
+            )
         }
 
         @Test func `pound if`() {

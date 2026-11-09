@@ -56,8 +56,14 @@ extension Lexer.Scanner {
         }
         var tracker = Text.Location.Tracker()
         do throws(Text.Location.Tracker.Error) {
-            for index in 0..<end where source[index].bitPattern == 0x0A {
-                try tracker.newline(at: Text.Position(_unchecked: Ordinal(UInt(index))))
+            for index in 0..<end {
+                let byte = source[index]
+                let isLineFeed = byte == .ascii.lf
+                let isLoneCarriageReturn =
+                    byte == .ascii.cr && !(index + 1 < source.count && source[index + 1] == .ascii.lf)
+                if isLineFeed || isLoneCarriageReturn {
+                    try tracker.newline(at: Text.Position(_unchecked: Ordinal(UInt(index))))
+                }
             }
             return try tracker.location(at: position)
         } catch {
@@ -266,12 +272,11 @@ extension Lexer.Scanner {
                 cursor += .one
 
             case .ascii.cr:
-                newline(at: cursor)
-                cursor += .one
-
-                if contains(cursor) && byte(at: cursor) == .ascii.lf {
+                if contains(cursor + .one) && byte(at: cursor + .one) == .ascii.lf {
                     cursor += .one
                 }
+                newline(at: cursor)
+                cursor += .one
 
             case .ascii.lf:
                 newline(at: cursor)
@@ -331,11 +336,11 @@ extension Lexer.Scanner {
                 cursor += .one
                 depth -= 1
             } else if b == .ascii.cr {
-                newline(at: cursor)
-                cursor += .one
-                if contains(cursor) && byte(at: cursor) == .ascii.lf {
+                if contains(cursor + .one) && byte(at: cursor + .one) == .ascii.lf {
                     cursor += .one
                 }
+                newline(at: cursor)
+                cursor += .one
             } else if b == .ascii.lf {
                 newline(at: cursor)
                 cursor += .one
@@ -366,7 +371,7 @@ extension Lexer.Scanner {
             return dollar()
         }
         if Lexer.Classify.isDecimalDigit(b) {
-            return number()
+            return number(diagnostics: &diagnostics)
         }
 
         switch b {
@@ -518,29 +523,22 @@ extension Lexer.Scanner {
 
     @inlinable
     @_lifetime(self: copy self)
-    package mutating func number() -> Token.Kind {
+    package mutating func number(
+        diagnostics: inout [Lexer.Error]
+    ) -> Token.Kind {
         var isFloat = false
         let first = byte(at: cursor)
 
         if first == .ascii.`0`, let next = peek(at: .one) {
             switch next {
             case .ascii.x, .ascii.X:
-                cursor += .one
-                cursor += .one
-                digits(Lexer.Classify.isHexDigit)
-                return .integerLiteral
+                return prefixed(Lexer.Classify.isHexDigit, diagnostics: &diagnostics)
 
             case .ascii.b, .ascii.B:
-                cursor += .one
-                cursor += .one
-                digits(Lexer.Classify.isBinaryDigit)
-                return .integerLiteral
+                return prefixed(Lexer.Classify.isBinaryDigit, diagnostics: &diagnostics)
 
             case .ascii.o, .ascii.O:
-                cursor += .one
-                cursor += .one
-                digits(Lexer.Classify.isOctalDigit)
-                return .integerLiteral
+                return prefixed(Lexer.Classify.isOctalDigit, diagnostics: &diagnostics)
 
             default: break
             }
@@ -570,6 +568,23 @@ extension Lexer.Scanner {
         }
 
         return isFloat ? .floatingLiteral : .integerLiteral
+    }
+
+    /// Scans a `0x`, `0b` or `0o` literal; the prefix must be followed by a digit of its radix.
+    @inlinable
+    @_lifetime(self: copy self)
+    package mutating func prefixed(
+        _ predicate: (Byte) -> Bool,
+        diagnostics: inout [Lexer.Error]
+    ) -> Token.Kind {
+        cursor += .one
+        cursor += .one
+        guard contains(cursor) && predicate(byte(at: cursor)) else {
+            diagnostics.append(.expectedDigitAfterPrefix(at: cursor))
+            return .integerLiteral
+        }
+        digits(predicate)
+        return .integerLiteral
     }
 
     @inlinable
@@ -652,8 +667,25 @@ extension Lexer.Scanner {
                 return .stringLiteral
 
             case .ascii.backslash:
+                let escape = cursor
                 cursor += .one
-                if contains(cursor) { cursor += .one }
+                guard contains(cursor) else { break }
+                switch byte(at: cursor) {
+                case .ascii.`0`, .ascii.backslash, .ascii.t, .ascii.n, .ascii.r,
+                    .ascii.doubleQuote, .ascii.apostrophe, .ascii.leftParenthesis:
+                    cursor += .one
+
+                case .ascii.u where peek(at: .one) == .ascii.leftBrace:
+                    cursor += .one
+
+                case .ascii.lf, .ascii.cr:
+                    // The line break stays unconsumed, so the literal ends unterminated.
+                    diagnostics.append(.invalidEscapeSequence(at: escape))
+
+                default:
+                    diagnostics.append(.invalidEscapeSequence(at: escape))
+                    cursor += .one
+                }
 
             case .ascii.lf, .ascii.cr:
                 diagnostics.append(.unterminatedStringLiteral(at: start))
