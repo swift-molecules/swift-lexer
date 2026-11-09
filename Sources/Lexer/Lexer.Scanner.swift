@@ -41,7 +41,13 @@ extension Lexer.Scanner {
     public var position: Text.Position { Text.Position(_unchecked: Ordinal(UInt(offset))) }
 
     @inlinable
-    public var location: Text.Location { tracker.location(at: position) }
+    public var location: Text.Location {
+        do throws(Text.Location.Tracker.Error) {
+            return try tracker.location(at: position)
+        } catch {
+            preconditionFailure("Scanner position precedes the current line start: \(error)")
+        }
+    }
 
     @inlinable
     public func location(at position: Text.Position) -> Text.Location {
@@ -49,12 +55,14 @@ extension Lexer.Scanner {
             preconditionFailure("Scanner location is outside the source")
         }
         var tracker = Text.Location.Tracker()
-        (0..<end).forEach { index in
-            if source[index].bitPattern == 0x0A {
-                tracker.newline(at: Text.Position(_unchecked: Ordinal(UInt(index))))
+        do throws(Text.Location.Tracker.Error) {
+            for index in 0..<end where source[index].bitPattern == 0x0A {
+                try tracker.newline(at: Text.Position(_unchecked: Ordinal(UInt(index))))
             }
+            return try tracker.location(at: position)
+        } catch {
+            preconditionFailure("Locations inside an Int-indexed source are representable: \(error)")
         }
-        return tracker.location(at: position)
     }
 
     @inlinable
@@ -121,7 +129,11 @@ extension Lexer.Scanner {
     @inlinable
     @_lifetime(self: copy self)
     public mutating func newline(at position: Text.Position) {
-        tracker.newline(at: position)
+        do throws(Text.Location.Tracker.Error) {
+            try tracker.newline(at: position)
+        } catch {
+            preconditionFailure("Scanner newline position is not representable: \(error)")
+        }
     }
 }
 
@@ -178,6 +190,19 @@ extension Lexer.Scanner {
 
     @inlinable
     @inline(__always)
+    package func range(
+        from start: Text.Position,
+        to end: Text.Position
+    ) -> Text.Range {
+        do throws(Text.Range.Error) {
+            return try Text.Range(start: start, end: end)
+        } catch {
+            preconditionFailure("The scanner only moves forward within a lexeme: \(error)")
+        }
+    }
+
+    @inlinable
+    @inline(__always)
     package func distance(
         from start: Text.Position,
         to end: Text.Position
@@ -204,7 +229,7 @@ extension Lexer.Scanner {
             hasEmittedEndOfFile = true
             return Lexer.Lexeme(
                 kind: .endOfFile,
-                range: Text.Range(start: cursor, end: cursor),
+                range: range(from: cursor, to: cursor),
                 leadingTriviaLength: leadingLength,
                 trailingTriviaLength: .zero
             )
@@ -220,7 +245,7 @@ extension Lexer.Scanner {
 
         return Lexer.Lexeme(
             kind: kind,
-            range: Text.Range(start: tokenStart, end: tokenEnd),
+            range: range(from: tokenStart, to: tokenEnd),
             leadingTriviaLength: leadingLength,
             trailingTriviaLength: trailingLength
         )
@@ -241,7 +266,7 @@ extension Lexer.Scanner {
                 cursor += .one
 
             case .ascii.cr:
-                tracker.newline(at: cursor)
+                newline(at: cursor)
                 cursor += .one
 
                 if contains(cursor) && byte(at: cursor) == .ascii.lf {
@@ -249,7 +274,7 @@ extension Lexer.Scanner {
                 }
 
             case .ascii.lf:
-                tracker.newline(at: cursor)
+                newline(at: cursor)
                 cursor += .one
 
             case .ascii.slash:
@@ -306,13 +331,13 @@ extension Lexer.Scanner {
                 cursor += .one
                 depth -= 1
             } else if b == .ascii.cr {
-                tracker.newline(at: cursor)
+                newline(at: cursor)
                 cursor += .one
                 if contains(cursor) && byte(at: cursor) == .ascii.lf {
                     cursor += .one
                 }
             } else if b == .ascii.lf {
-                tracker.newline(at: cursor)
+                newline(at: cursor)
                 cursor += .one
             } else {
                 cursor += .one
