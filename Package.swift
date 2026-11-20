@@ -25,7 +25,11 @@ let package = Package(
         .trait(
             name: "LexerStandardLibraryIntegration",
             description: "Lexer Standard Library Integration and the dependencies only it needs"
-        )
+        ),
+        .trait(
+            name: "Token",
+            description: "Swift language token scanning"
+        ),
     ],
     dependencies: [
         .package(
@@ -66,7 +70,7 @@ let package = Package(
         .target(
             name: "Lexer",
             dependencies: [
-                .product(name: "Token", package: "swift-token"),
+                .product(name: "Token", package: "swift-token", condition: .when(traits: ["Token"])),
                 .product(name: "ASCII", package: "swift-ascii"),
                 .product(name: "Cursor", package: "swift-cursor"),
                 .product(name: "Byte", package: "swift-byte"),
@@ -97,8 +101,9 @@ let package = Package(
                 .target(name: "Lexer"),
                 .product(name: "Byte", package: "swift-byte"),
                 .product(name: "Cardinal", package: "swift-cardinal"),
+                .product(name: "Ordinal", package: "swift-ordinal"),
                 .product(name: "Text", package: "swift-text"),
-                .product(name: "Token", package: "swift-token"),
+                .product(name: "Token", package: "swift-token", condition: .when(traits: ["Token"])),
             ]
         ),
     ],

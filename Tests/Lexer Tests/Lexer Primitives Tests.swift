@@ -1,333 +1,335 @@
-import Byte
-import Cardinal
-import Lexer
-import Ordinal
-import Testing
-import Text
-import Token
+#if Token
+    import Byte
+    import Cardinal
+    import Lexer
+    import Ordinal
+    import Testing
+    import Text
+    import Token
 
-enum `Lexer.Scanner Tests` {}
+    enum `Lexer.Scanner Tests` {}
 
-extension `Lexer.Scanner Tests` {
-    @Suite
-    struct Test {
+    extension `Lexer.Scanner Tests` {
+        @Suite
+        struct Test {
 
-        private func kinds(
-            from source: String
-        ) -> (kinds: [Token.Kind], diagnostics: [Lexer.Error]) {
-            let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
-            return bytes.withUnsafeBufferPointer { buffer in
-                let span = unsafe Span(_unsafeElements: buffer)
-                var scanner = Lexer.Scanner(span)
-                var kinds: [Token.Kind] = []
-                var diagnostics: [Lexer.Error] = []
-                while let lexeme = scanner.next(diagnostics: &diagnostics) {
-                    kinds.append(lexeme.kind)
+            private func kinds(
+                from source: String
+            ) -> (kinds: [Token.Kind], diagnostics: [Lexer.Error]) {
+                let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
+                return bytes.withUnsafeBufferPointer { buffer in
+                    let span = unsafe Span(_unsafeElements: buffer)
+                    var scanner = Lexer.Scanner(span)
+                    var kinds: [Token.Kind] = []
+                    var diagnostics: [Lexer.Error] = []
+                    while let lexeme = scanner.next(diagnostics: &diagnostics) {
+                        kinds.append(lexeme.kind)
+                    }
+                    return (kinds, diagnostics)
                 }
-                return (kinds, diagnostics)
             }
-        }
 
-        @Test func `empty input`() {
-            let (kinds, diagnostics) = kinds(from: "")
-            #expect(kinds == [.endOfFile])
-            #expect(diagnostics.isEmpty)
-        }
-
-        @Test func identifier() {
-            let (kinds, _) = kinds(from: "foo")
-            #expect(kinds == [.identifier, .endOfFile])
-        }
-
-        @Test func keyword() {
-            let (kinds, _) = kinds(from: "let")
-            #expect(kinds == [.keyword(.let), .endOfFile])
-        }
-
-        @Test func `multiple keywords`() {
-            let (kinds, _) = kinds(from: "var x")
-            #expect(kinds == [.keyword(.var), .identifier, .endOfFile])
-        }
-
-        @Test func wildcard() {
-            let (kinds, _) = kinds(from: "_")
-            #expect(kinds == [.wildcard, .endOfFile])
-        }
-
-        @Test func `identifier starting with underscore`() {
-            let (kinds, _) = kinds(from: "_foo")
-            #expect(kinds == [.identifier, .endOfFile])
-        }
-
-        @Test func `dollar identifier`() {
-            let (kinds, _) = kinds(from: "$0")
-            #expect(kinds == [.dollarIdentifier, .endOfFile])
-        }
-
-        @Test func `integer literal`() {
-            let (kinds, _) = kinds(from: "42")
-            #expect(kinds == [.integerLiteral, .endOfFile])
-        }
-
-        @Test func `integer with separators`() {
-            let (kinds, _) = kinds(from: "1_000")
-            #expect(kinds == [.integerLiteral, .endOfFile])
-        }
-
-        @Test func `hex literal`() {
-            let (kinds, _) = kinds(from: "0xFF")
-            #expect(kinds == [.integerLiteral, .endOfFile])
-        }
-
-        @Test func `binary literal`() {
-            let (kinds, _) = kinds(from: "0b1010")
-            #expect(kinds == [.integerLiteral, .endOfFile])
-        }
-
-        @Test func `octal literal`() {
-            let (kinds, _) = kinds(from: "0o77")
-            #expect(kinds == [.integerLiteral, .endOfFile])
-        }
-
-        @Test func `floating literal`() {
-            let (kinds, _) = kinds(from: "3.14")
-            #expect(kinds == [.floatingLiteral, .endOfFile])
-        }
-
-        @Test func `floating literal with exponent`() {
-            let (kinds, _) = kinds(from: "1e10")
-            #expect(kinds == [.floatingLiteral, .endOfFile])
-        }
-
-        @Test func `floating literal with fraction and exponent`() {
-            let (kinds, _) = kinds(from: "2.5e-3")
-            #expect(kinds == [.floatingLiteral, .endOfFile])
-        }
-
-        @Test func `string literal`() {
-            let (kinds, _) = kinds(from: #""hello""#)
-            #expect(kinds == [.stringLiteral, .endOfFile])
-        }
-
-        @Test func `unterminated string`() {
-            let (kinds, diagnostics) = kinds(from: #""hello"#)
-            #expect(kinds == [.stringLiteral, .endOfFile])
-            #expect(diagnostics.count == 1)
-        }
-
-        @Test func braces() {
-            let (kinds, _) = kinds(from: "{}")
-            #expect(kinds == [.leftBrace, .rightBrace, .endOfFile])
-        }
-
-        @Test func parens() {
-            let (kinds, _) = kinds(from: "()")
-            #expect(kinds == [.leftParen, .rightParen, .endOfFile])
-        }
-
-        @Test func arrow() {
-            let (kinds, _) = kinds(from: "->")
-            #expect(kinds == [.arrow, .endOfFile])
-        }
-
-        @Test func ellipsis() {
-            let (kinds, _) = kinds(from: "...")
-            #expect(kinds == [.ellipsis, .endOfFile])
-        }
-
-        @Test func `binary operator`() {
-            let (kinds, _) = kinds(from: "+")
-            #expect(kinds == [.binaryOperator, .endOfFile])
-        }
-
-        @Test func `line comment`() {
-            let (kinds, diagnostics) = kinds(from: "// comment\nfoo")
-            #expect(kinds == [.identifier, .endOfFile])
-            #expect(diagnostics.isEmpty)
-        }
-
-        @Test func `block comment`() {
-            let (kinds, diagnostics) = kinds(from: "/* comment */ foo")
-            #expect(kinds == [.identifier, .endOfFile])
-            #expect(diagnostics.isEmpty)
-        }
-
-        @Test func `nested block comment`() {
-            let (kinds, diagnostics) = kinds(from: "/* /* nested */ */ foo")
-            #expect(kinds == [.identifier, .endOfFile])
-            #expect(diagnostics.isEmpty)
-        }
-
-        @Test func `unterminated block comment`() {
-            let (kinds, diagnostics) = kinds(from: "/* unterminated")
-            #expect(kinds == [.endOfFile])
-            #expect(diagnostics.count == 1)
-        }
-
-        @Test func `leading trivia`() {
-            let source = "  foo"
-            let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
-            bytes.withUnsafeBufferPointer { buffer in
-                let span = unsafe Span(_unsafeElements: buffer)
-                var scanner = Lexer.Scanner(span)
-                var diagnostics: [Lexer.Error] = []
-                let lexeme = scanner.next(diagnostics: &diagnostics)
-                #expect(lexeme?.kind == .identifier)
-                #expect(lexeme?.leadingTriviaLength == Text.Count(Cardinal(2)))
+            @Test func `empty input`() {
+                let (kinds, diagnostics) = kinds(from: "")
+                #expect(kinds == [.endOfFile])
+                #expect(diagnostics.isEmpty)
             }
-        }
 
-        @Test func `trailing trivia`() {
-            let source = "foo  \nbar"
-            let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
-            bytes.withUnsafeBufferPointer { buffer in
-                let span = unsafe Span(_unsafeElements: buffer)
-                var scanner = Lexer.Scanner(span)
-                var diagnostics: [Lexer.Error] = []
-                let lexeme = scanner.next(diagnostics: &diagnostics)
-                #expect(lexeme?.kind == .identifier)
-
-                #expect(lexeme?.trailingTriviaLength == Text.Count(Cardinal(2)))
+            @Test func identifier() {
+                let (kinds, _) = kinds(from: "foo")
+                #expect(kinds == [.identifier, .endOfFile])
             }
-        }
 
-        @Test func `location tracking`() {
-            let source = "let\nx"
-            let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
-            bytes.withUnsafeBufferPointer { buffer in
-                let span = unsafe Span(_unsafeElements: buffer)
-                var scanner = Lexer.Scanner(span)
-                var diagnostics: [Lexer.Error] = []
-
-                let first = scanner.next(diagnostics: &diagnostics)
-                #expect(first?.kind == .keyword(.let))
-
-                let second = scanner.next(diagnostics: &diagnostics)
-                #expect(second?.kind == .identifier)
-                #expect(scanner.location.line == Text.Line.Number(2))
+            @Test func keyword() {
+                let (kinds, _) = kinds(from: "let")
+                #expect(kinds == [.keyword(.let), .endOfFile])
             }
-        }
 
-        private func locations(
-            from source: String
-        ) -> (incremental: Text.Location, recomputed: Text.Location, lexeme: Text.Location?) {
-            let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
-            return bytes.withUnsafeBufferPointer { buffer in
-                let span = unsafe Span(_unsafeElements: buffer)
-                var scanner = Lexer.Scanner(span)
-                var diagnostics: [Lexer.Error] = []
-                var last: Lexer.Lexeme?
-                while let lexeme = scanner.next(diagnostics: &diagnostics), !lexeme.isAtEnd {
-                    last = lexeme
+            @Test func `multiple keywords`() {
+                let (kinds, _) = kinds(from: "var x")
+                #expect(kinds == [.keyword(.var), .identifier, .endOfFile])
+            }
+
+            @Test func wildcard() {
+                let (kinds, _) = kinds(from: "_")
+                #expect(kinds == [.wildcard, .endOfFile])
+            }
+
+            @Test func `identifier starting with underscore`() {
+                let (kinds, _) = kinds(from: "_foo")
+                #expect(kinds == [.identifier, .endOfFile])
+            }
+
+            @Test func `dollar identifier`() {
+                let (kinds, _) = kinds(from: "$0")
+                #expect(kinds == [.dollarIdentifier, .endOfFile])
+            }
+
+            @Test func `integer literal`() {
+                let (kinds, _) = kinds(from: "42")
+                #expect(kinds == [.integerLiteral, .endOfFile])
+            }
+
+            @Test func `integer with separators`() {
+                let (kinds, _) = kinds(from: "1_000")
+                #expect(kinds == [.integerLiteral, .endOfFile])
+            }
+
+            @Test func `hex literal`() {
+                let (kinds, _) = kinds(from: "0xFF")
+                #expect(kinds == [.integerLiteral, .endOfFile])
+            }
+
+            @Test func `binary literal`() {
+                let (kinds, _) = kinds(from: "0b1010")
+                #expect(kinds == [.integerLiteral, .endOfFile])
+            }
+
+            @Test func `octal literal`() {
+                let (kinds, _) = kinds(from: "0o77")
+                #expect(kinds == [.integerLiteral, .endOfFile])
+            }
+
+            @Test func `floating literal`() {
+                let (kinds, _) = kinds(from: "3.14")
+                #expect(kinds == [.floatingLiteral, .endOfFile])
+            }
+
+            @Test func `floating literal with exponent`() {
+                let (kinds, _) = kinds(from: "1e10")
+                #expect(kinds == [.floatingLiteral, .endOfFile])
+            }
+
+            @Test func `floating literal with fraction and exponent`() {
+                let (kinds, _) = kinds(from: "2.5e-3")
+                #expect(kinds == [.floatingLiteral, .endOfFile])
+            }
+
+            @Test func `string literal`() {
+                let (kinds, _) = kinds(from: #""hello""#)
+                #expect(kinds == [.stringLiteral, .endOfFile])
+            }
+
+            @Test func `unterminated string`() {
+                let (kinds, diagnostics) = kinds(from: #""hello"#)
+                #expect(kinds == [.stringLiteral, .endOfFile])
+                #expect(diagnostics.count == 1)
+            }
+
+            @Test func braces() {
+                let (kinds, _) = kinds(from: "{}")
+                #expect(kinds == [.leftBrace, .rightBrace, .endOfFile])
+            }
+
+            @Test func parens() {
+                let (kinds, _) = kinds(from: "()")
+                #expect(kinds == [.leftParen, .rightParen, .endOfFile])
+            }
+
+            @Test func arrow() {
+                let (kinds, _) = kinds(from: "->")
+                #expect(kinds == [.arrow, .endOfFile])
+            }
+
+            @Test func ellipsis() {
+                let (kinds, _) = kinds(from: "...")
+                #expect(kinds == [.ellipsis, .endOfFile])
+            }
+
+            @Test func `binary operator`() {
+                let (kinds, _) = kinds(from: "+")
+                #expect(kinds == [.binaryOperator, .endOfFile])
+            }
+
+            @Test func `line comment`() {
+                let (kinds, diagnostics) = kinds(from: "// comment\nfoo")
+                #expect(kinds == [.identifier, .endOfFile])
+                #expect(diagnostics.isEmpty)
+            }
+
+            @Test func `block comment`() {
+                let (kinds, diagnostics) = kinds(from: "/* comment */ foo")
+                #expect(kinds == [.identifier, .endOfFile])
+                #expect(diagnostics.isEmpty)
+            }
+
+            @Test func `nested block comment`() {
+                let (kinds, diagnostics) = kinds(from: "/* /* nested */ */ foo")
+                #expect(kinds == [.identifier, .endOfFile])
+                #expect(diagnostics.isEmpty)
+            }
+
+            @Test func `unterminated block comment`() {
+                let (kinds, diagnostics) = kinds(from: "/* unterminated")
+                #expect(kinds == [.endOfFile])
+                #expect(diagnostics.count == 1)
+            }
+
+            @Test func `leading trivia`() {
+                let source = "  foo"
+                let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
+                bytes.withUnsafeBufferPointer { buffer in
+                    let span = unsafe Span(_unsafeElements: buffer)
+                    var scanner = Lexer.Scanner(span)
+                    var diagnostics: [Lexer.Error] = []
+                    let lexeme = scanner.next(diagnostics: &diagnostics)
+                    #expect(lexeme?.kind == .identifier)
+                    #expect(lexeme?.leadingTriviaLength == Text.Count(Cardinal(2)))
                 }
-                return (
-                    scanner.location,
-                    scanner.location(at: scanner.position),
-                    last.map { scanner.location(at: $0.range.start) }
+            }
+
+            @Test func `trailing trivia`() {
+                let source = "foo  \nbar"
+                let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
+                bytes.withUnsafeBufferPointer { buffer in
+                    let span = unsafe Span(_unsafeElements: buffer)
+                    var scanner = Lexer.Scanner(span)
+                    var diagnostics: [Lexer.Error] = []
+                    let lexeme = scanner.next(diagnostics: &diagnostics)
+                    #expect(lexeme?.kind == .identifier)
+
+                    #expect(lexeme?.trailingTriviaLength == Text.Count(Cardinal(2)))
+                }
+            }
+
+            @Test func `location tracking`() {
+                let source = "let\nx"
+                let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
+                bytes.withUnsafeBufferPointer { buffer in
+                    let span = unsafe Span(_unsafeElements: buffer)
+                    var scanner = Lexer.Scanner(span)
+                    var diagnostics: [Lexer.Error] = []
+
+                    let first = scanner.next(diagnostics: &diagnostics)
+                    #expect(first?.kind == .keyword(.let))
+
+                    let second = scanner.next(diagnostics: &diagnostics)
+                    #expect(second?.kind == .identifier)
+                    #expect(scanner.location.line == Text.Line.Number(2))
+                }
+            }
+
+            private func locations(
+                from source: String
+            ) -> (incremental: Text.Location, recomputed: Text.Location, lexeme: Text.Location?) {
+                let bytes: [Byte] = source.utf8.map(Byte.init(bitPattern:))
+                return bytes.withUnsafeBufferPointer { buffer in
+                    let span = unsafe Span(_unsafeElements: buffer)
+                    var scanner = Lexer.Scanner(span)
+                    var diagnostics: [Lexer.Error] = []
+                    var last: Lexer.Lexeme?
+                    while let lexeme = scanner.next(diagnostics: &diagnostics), !lexeme.isAtEnd {
+                        last = lexeme
+                    }
+                    return (
+                        scanner.location,
+                        scanner.location(at: scanner.position),
+                        last.map { scanner.location(at: $0.range.start) }
+                    )
+                }
+            }
+
+            @Test(arguments: [
+                ("a\nbc", 1, 3), ("a\r\nbc", 1, 3), ("a\rbc", 1, 3),
+                ("/*\n*/bc", 3, 5), ("/*\r\n*/bc", 3, 5), ("/*\r*/bc", 3, 5),
+            ])
+            func `location after a line break`(source: String, lexemeColumn: UInt, endColumn: UInt) {
+                let (incremental, recomputed, lexeme) = locations(from: source)
+                let end = Text.Location(line: Text.Line.Number(2), column: Text.Line.Column(Cardinal(endColumn)))
+                #expect(incremental == end)
+                #expect(recomputed == end)
+                #expect(lexeme == Text.Location(line: Text.Line.Number(2), column: Text.Line.Column(Cardinal(lexemeColumn))))
+            }
+
+            @Test(arguments: ["0x", "0b", "0o", "0x_1", "0b2"])
+            func `prefix without digits`(source: String) {
+                let (kinds, diagnostics) = kinds(from: source)
+                #expect(kinds.first == .integerLiteral)
+                #expect(diagnostics == [.expectedDigitAfterPrefix(at: Text.Position(Ordinal(2)))])
+            }
+
+            @Test func `valid escape sequences`() {
+                let (kinds, diagnostics) = kinds(from: #""\0\\\t\n\r\"\'\u{41}\(x)""#)
+                #expect(kinds == [.stringLiteral, .endOfFile])
+                #expect(diagnostics.isEmpty)
+            }
+
+            @Test func `invalid escape sequence`() {
+                let (kinds, diagnostics) = kinds(from: #""a\qb""#)
+                #expect(kinds == [.stringLiteral, .endOfFile])
+                #expect(diagnostics == [.invalidEscapeSequence(at: Text.Position(Ordinal(2)))])
+            }
+
+            @Test func `escaped line break ends the string`() {
+                let (kinds, diagnostics) = kinds(from: "\"a\\\nb")
+                #expect(kinds == [.stringLiteral, .identifier, .endOfFile])
+                #expect(
+                    diagnostics == [
+                        .invalidEscapeSequence(at: Text.Position(Ordinal(2))),
+                        .unterminatedStringLiteral(at: Text.Position(Ordinal(0))),
+                    ]
+                )
+            }
+
+            @Test func `pound if`() {
+                let (kinds, _) = kinds(from: "#if FOO")
+                #expect(kinds == [.poundIf, .identifier, .endOfFile])
+            }
+
+            @Test func `pound else`() {
+                let (kinds, _) = kinds(from: "#else")
+                #expect(kinds == [.poundElse, .endOfFile])
+            }
+
+            @Test func `pound endif`() {
+                let (kinds, _) = kinds(from: "#endif")
+                #expect(kinds == [.poundEndif, .endOfFile])
+            }
+
+            @Test func `pound elseif`() {
+                let (kinds, _) = kinds(from: "#elseif BAR")
+                #expect(kinds == [.poundElseif, .identifier, .endOfFile])
+            }
+
+            @Test func `bare pound`() {
+                let (kinds, _) = kinds(from: "#foo")
+                #expect(kinds == [.pound, .identifier, .endOfFile])
+            }
+
+            @Test func `unknown character`() {
+                let (kinds, diagnostics) = kinds(from: "§")
+
+                #expect(kinds.contains(.unknown))
+                #expect(!diagnostics.isEmpty)
+            }
+
+            @Test func `simple declaration`() {
+                let (kinds, _) = kinds(from: "let x = 42")
+                #expect(
+                    kinds == [
+                        .keyword(.let),
+                        .identifier,
+                        .equal,
+                        .integerLiteral,
+                        .endOfFile,
+                    ]
+                )
+            }
+
+            @Test func `function signature`() {
+                let (kinds, _) = kinds(from: "func f() -> Int")
+                #expect(
+                    kinds == [
+                        .keyword(.func),
+                        .identifier,
+                        .leftParen,
+                        .rightParen,
+                        .arrow,
+                        .identifier,
+                        .endOfFile,
+                    ]
                 )
             }
         }
-
-        @Test(arguments: [
-            ("a\nbc", 1, 3), ("a\r\nbc", 1, 3), ("a\rbc", 1, 3),
-            ("/*\n*/bc", 3, 5), ("/*\r\n*/bc", 3, 5), ("/*\r*/bc", 3, 5),
-        ])
-        func `location after a line break`(source: String, lexemeColumn: UInt, endColumn: UInt) {
-            let (incremental, recomputed, lexeme) = locations(from: source)
-            let end = Text.Location(line: Text.Line.Number(2), column: Text.Line.Column(Cardinal(endColumn)))
-            #expect(incremental == end)
-            #expect(recomputed == end)
-            #expect(lexeme == Text.Location(line: Text.Line.Number(2), column: Text.Line.Column(Cardinal(lexemeColumn))))
-        }
-
-        @Test(arguments: ["0x", "0b", "0o", "0x_1", "0b2"])
-        func `prefix without digits`(source: String) {
-            let (kinds, diagnostics) = kinds(from: source)
-            #expect(kinds.first == .integerLiteral)
-            #expect(diagnostics == [.expectedDigitAfterPrefix(at: Text.Position(Ordinal(2)))])
-        }
-
-        @Test func `valid escape sequences`() {
-            let (kinds, diagnostics) = kinds(from: #""\0\\\t\n\r\"\'\u{41}\(x)""#)
-            #expect(kinds == [.stringLiteral, .endOfFile])
-            #expect(diagnostics.isEmpty)
-        }
-
-        @Test func `invalid escape sequence`() {
-            let (kinds, diagnostics) = kinds(from: #""a\qb""#)
-            #expect(kinds == [.stringLiteral, .endOfFile])
-            #expect(diagnostics == [.invalidEscapeSequence(at: Text.Position(Ordinal(2)))])
-        }
-
-        @Test func `escaped line break ends the string`() {
-            let (kinds, diagnostics) = kinds(from: "\"a\\\nb")
-            #expect(kinds == [.stringLiteral, .identifier, .endOfFile])
-            #expect(
-                diagnostics == [
-                    .invalidEscapeSequence(at: Text.Position(Ordinal(2))),
-                    .unterminatedStringLiteral(at: Text.Position(Ordinal(0))),
-                ]
-            )
-        }
-
-        @Test func `pound if`() {
-            let (kinds, _) = kinds(from: "#if FOO")
-            #expect(kinds == [.poundIf, .identifier, .endOfFile])
-        }
-
-        @Test func `pound else`() {
-            let (kinds, _) = kinds(from: "#else")
-            #expect(kinds == [.poundElse, .endOfFile])
-        }
-
-        @Test func `pound endif`() {
-            let (kinds, _) = kinds(from: "#endif")
-            #expect(kinds == [.poundEndif, .endOfFile])
-        }
-
-        @Test func `pound elseif`() {
-            let (kinds, _) = kinds(from: "#elseif BAR")
-            #expect(kinds == [.poundElseif, .identifier, .endOfFile])
-        }
-
-        @Test func `bare pound`() {
-            let (kinds, _) = kinds(from: "#foo")
-            #expect(kinds == [.pound, .identifier, .endOfFile])
-        }
-
-        @Test func `unknown character`() {
-            let (kinds, diagnostics) = kinds(from: "§")
-
-            #expect(kinds.contains(.unknown))
-            #expect(!diagnostics.isEmpty)
-        }
-
-        @Test func `simple declaration`() {
-            let (kinds, _) = kinds(from: "let x = 42")
-            #expect(
-                kinds == [
-                    .keyword(.let),
-                    .identifier,
-                    .equal,
-                    .integerLiteral,
-                    .endOfFile,
-                ]
-            )
-        }
-
-        @Test func `function signature`() {
-            let (kinds, _) = kinds(from: "func f() -> Int")
-            #expect(
-                kinds == [
-                    .keyword(.func),
-                    .identifier,
-                    .leftParen,
-                    .rightParen,
-                    .arrow,
-                    .identifier,
-                    .endOfFile,
-                ]
-            )
-        }
     }
-}
+#endif
